@@ -1,0 +1,26 @@
+[
+  {
+    "id": 1,
+    "service_name": "Dọn dẹp nhà cửa",
+    "description": "Dịch vụ dọn dẹp chuyên nghiệp giúp ngôi nhà của bạn luôn sạch sẽ, thoáng đãng. Chúng tôi cung cấp các gói dọn dẹp linh hoạt theo giờ hoặc theo gói định kỳ.",
+    "image_url": "https://placehold.co/600x400/5e81ac/ffffff?text=Dọn+Nhà",
+    "features": [
+      "Lau sàn, hút bụi",
+      "Vệ sinh cửa kính",
+      "Làm sạch khu vực bếp và nhà vệ sinh",
+      "Sắp xếp đồ đạc gọn gàng"
+    ]
+  },
+  {
+    "id": 2,
+    "service_name": "Chuyển nhà",
+    "description": "Giải pháp chuyển nhà trọn gói, an toàn và tiết kiệm. Đội ngũ chuyên nghiệp của chúng tôi sẽ hỗ trợ bạn từ khâu đóng gói, vận chuyển đến sắp xếp tại nhà mới.",
+    "image_url": "https://placehold.co/600x400/bf616a/ffffff?text=Chuyển+Nhà",
+    "features": [
+      "Tháo dỡ và đóng gói đồ đạc",
+      "Cung cấp thùng carton, vật liệu đóng gói",
+      "Vận chuyển bằng xe tải chuyên dụng",
+      "Lắp đặt và sắp xếp tại địa chỉ mới"
+    ]
+  }
+]
