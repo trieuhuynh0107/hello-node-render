@@ -1,35 +1,44 @@
-// controllers/serviceController.js - Chứa logic xử lý cho các request
+// Import "pool" kết nối đã được cấu hình từ file db.js
+const pool = require('../config/db');
 
-// Import dữ liệu tĩnh từ các file JSON
-const services = require('../data/services.json');
-const serviceDetails = require('../data/serviceDetails.json');
-
-// Hàm để lấy danh sách tất cả dịch vụ
-const getServices = (req, res) => {
-  // Trả về dữ liệu từ file services.json dưới dạng JSON
-  res.status(200).json(services);
-};
-
-// Hàm để lấy thông tin chi tiết của một dịch vụ dựa trên ID
-const getServiceById = (req, res) => {
-  // Lấy id từ URL (vd: /api/services/1 -> req.params.id là '1')
-  const { id } = req.params;
-
-  // Tìm dịch vụ trong mảng serviceDetails có id trùng khớp
-  // Dùng parseInt để chuyển id từ string sang number để so sánh
-  const service = serviceDetails.find(s => s.id === parseInt(id));
-
-  if (service) {
-    // Nếu tìm thấy, trả về thông tin dịch vụ
-    res.status(200).json(service);
-  } else {
-    // Nếu không tìm thấy, trả về lỗi 404
-    res.status(404).json({ message: 'Service not found' });
+// Hàm để lấy danh sách tất cả dịch vụ từ database
+const getServices = async (req, res) => {
+  try {
+    // Gửi một câu lệnh SQL tới database để lấy tất cả các cột từ bảng services
+    const result = await pool.query('SELECT * FROM services');
+    
+    // Dữ liệu trả về nằm trong result.rows
+    res.status(200).json(result.rows);
+  } catch (error) {
+    // Nếu có lỗi, in ra console và trả về lỗi 500
+    console.error('Error fetching services:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };
 
-// Xuất các hàm để file routes/api.js có thể sử dụng
+// Hàm để lấy thông tin chi tiết của một dịch vụ từ database
+const getServiceById = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    // Gửi câu lệnh SQL có tham số ($1) để tránh lỗi bảo mật SQL Injection
+    const result = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
+
+    // Nếu không tìm thấy dịch vụ nào (result.rows rỗng)
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Service not found' });
+    }
+
+    // Trả về dịch vụ đầu tiên tìm được
+    res.status(200).json(result.rows[0]);
+  } catch (error) {
+    console.error(`Error fetching service with id ${req.params.id}:`, error);
+    res.status(500).json({ message: 'Internal Server Error' });
+  }
+};
+
 module.exports = {
   getServices,
   getServiceById,
 };
+
