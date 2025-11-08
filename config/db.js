@@ -5,15 +5,12 @@ require('dotenv').config();
 const { Pool } = require('pg');
 
 // Tạo một "pool" kết nối.
-// Pool sẽ quản lý nhiều kết nối cùng lúc để tối ưu hiệu suất.
-// Nó sẽ tự động sử dụng biến môi trường DATABASE_URL mà chúng ta đã định nghĩa trong file .env
+// Nó sẽ tự động sử dụng biến môi trường DATABASE_URL
+// mà chúng ta đã định nghĩa trong file .env
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  // Khi deploy lên Render, có thể cần cấu hình SSL
-  ssl: {
-    rejectUnauthorized: false
-  }
+  // Khi chạy localhost, chúng ta KHÔNG cần cấu hình SSL
 });
 
-// Xuất pool để các file khác trong dự án có thể sử dụng để truy vấn database
+// Xuất pool để các file khác trong dự án có thể sử dụng
 module.exports = pool;
