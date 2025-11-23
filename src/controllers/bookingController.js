@@ -1,4 +1,4 @@
-const pool = require('../config/db');
+const pool = require('../src/config/db');
 const { calculatePrice } = require('../utils/priceCalculator');
 
 // --- HÀM NỘI BỘ (HELPER FUNCTION) ---

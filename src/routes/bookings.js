@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 
 // Import "bộ não" controller
-const bookingController = require('../controllers/bookingController');
+const bookingController = require('../../controllers/bookingController');
 
 // Import 2 "người bảo vệ" (middleware)
 const { authenticateToken, authorizeRole } = require('../middleware/authMiddleware');

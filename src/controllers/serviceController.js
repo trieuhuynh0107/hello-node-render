@@ -1,5 +1,5 @@
 // Import "pool" kết nối đã được cấu hình từ file db.js
-const pool = require('../config/db');
+const pool = require('../src/config/db');
 
 // Hàm để lấy danh sách tất cả dịch vụ từ database
 const getServices = async (req, res) => {

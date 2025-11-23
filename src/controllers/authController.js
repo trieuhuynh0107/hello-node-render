@@ -1,5 +1,5 @@
 // Import các thư viện cần thiết
-const pool = require('../config/db'); // Pool kết nối database
+const pool = require('../src/config/db'); // Pool kết nối database
 const bcrypt = require('bcryptjs'); // Thư viện băm mật khẩu
 const jwt = require('jsonwebtoken'); // Thư viện tạo token
 
