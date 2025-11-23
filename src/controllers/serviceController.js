@@ -1,44 +1,70 @@
-// Import "pool" kết nối đã được cấu hình từ file db.js
-const pool = require('../src/config/db');
+const { Service } = require('../models');
 
-// Hàm để lấy danh sách tất cả dịch vụ từ database
-const getServices = async (req, res) => {
+/**
+ * GET /api/services
+ * Lấy danh sách dịch vụ (chỉ hiển thị dịch vụ đang active)
+ * Public API - Không cần authentication
+ */
+const getAllServices = async (req, res, next) => {
   try {
-    // Gửi một câu lệnh SQL tới database để lấy tất cả các cột từ bảng services
-    const result = await pool.query('SELECT * FROM services');
-    
-    // Dữ liệu trả về nằm trong result.rows
-    res.status(200).json(result.rows);
+    const services = await Service.findAll({
+      where: {
+        is_active: true  // Chỉ lấy dịch vụ đang hoạt động
+      },
+      attributes: ['id', 'name', 'description', 'base_price', 'duration_minutes'],
+      order: [['id', 'ASC']]
+    });
+
+    res.json({
+      success: true,
+      data: {
+        services,
+        total: services.length
+      }
+    });
+
   } catch (error) {
-    // Nếu có lỗi, in ra console và trả về lỗi 500
-    console.error('Error fetching services:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    next(error);
   }
 };
 
-// Hàm để lấy thông tin chi tiết của một dịch vụ từ database
-const getServiceById = async (req, res) => {
+/**
+ * GET /api/services/:id
+ * Lấy chi tiết 1 dịch vụ
+ * Public API
+ */
+const getServiceById = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
-    // Gửi câu lệnh SQL có tham số ($1) để tránh lỗi bảo mật SQL Injection
-    const result = await pool.query('SELECT * FROM services WHERE id = $1', [id]);
 
-    // Nếu không tìm thấy dịch vụ nào (result.rows rỗng)
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Service not found' });
+    const service = await Service.findOne({
+      where: {
+        id,
+        is_active: true  // Chỉ cho xem dịch vụ đang active
+      },
+      attributes: ['id', 'name', 'description', 'base_price', 'duration_minutes']
+    });
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy dịch vụ'
+      });
     }
 
-    // Trả về dịch vụ đầu tiên tìm được
-    res.status(200).json(result.rows[0]);
+    res.json({
+      success: true,
+      data: { service }
+    });
+
   } catch (error) {
-    console.error(`Error fetching service with id ${req.params.id}:`, error);
-    res.status(500).json({ message: 'Internal Server Error' });
+    next(error);
   }
 };
 
+
 module.exports = {
-  getServices,
-  getServiceById,
+  getAllServices,
+  getServiceById
 };
 
