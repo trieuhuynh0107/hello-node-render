@@ -1,229 +1,92 @@
-const { Service } = require('../models');
+const { body, param, validationResult } = require('express-validator');
 
 /**
- * GET /api/admin/services
- * Admin xem tất cả dịch vụ (bao gồm cả inactive)
+ * Validation cho tạo dịch vụ mới
  */
-const getAllServicesAdmin = async (req, res, next) => {
-  try {
-    const { status } = req.query;  // Filter: ?status=active hoặc ?status=inactive
+const createServiceValidation = [
+  body('name')
+    .trim()
+    .notEmpty()
+    .withMessage('Tên dịch vụ không được để trống')
+    .isLength({ max: 100 })
+    .withMessage('Tên dịch vụ không quá 100 ký tự'),
 
-    const where = {};
-    
-    if (status === 'active') {
-      where.is_active = true;
-    } else if (status === 'inactive') {
-      where.is_active = false;
-    }
+  body('description')
+    .optional()
+    .trim(),
 
-    const services = await Service.findAll({
-      where,
-      order: [['id', 'ASC']]
-    });
+  body('base_price')
+    .isFloat({ min: 0.01 })
+    .withMessage('Giá dịch vụ phải là số dương'),
 
-    res.json({
-      success: true,
-      data: {
-        services,
-        total: services.length
-      }
-    });
-
-  } catch (error) {
-    next(error);
-  }
-};
+  body('duration_minutes')
+    .isInt({ min: 1 })
+    .withMessage('Thời gian thực hiện phải là số nguyên dương (phút)')
+];
 
 /**
- * POST /api/admin/services
- * Tạo dịch vụ mới
+ * Validation cho update dịch vụ
  */
-const createService = async (req, res, next) => {
-  try {
-    const { name, description, base_price, duration_minutes } = req.body;
+const updateServiceValidation = [
+  param('id')
+    .isInt()
+    .withMessage('ID không hợp lệ'),
 
-    // Validation
-    if (!name || !base_price || !duration_minutes) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thiếu thông tin bắt buộc: name, base_price, duration_minutes'
-      });
-    }
+  body('name')
+    .optional()
+    .trim()
+    .notEmpty()
+    .withMessage('Tên dịch vụ không được để trống')
+    .isLength({ max: 100 })
+    .withMessage('Tên dịch vụ không quá 100 ký tự'),
 
-    if (base_price <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Giá dịch vụ phải lớn hơn 0'
-      });
-    }
+  body('description')
+    .optional()
+    .trim(),
 
-    if (duration_minutes <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thời gian thực hiện phải lớn hơn 0'
-      });
-    }
+  body('base_price')
+    .optional()
+    .isFloat({ min: 0.01 })
+    .withMessage('Giá dịch vụ phải là số dương'),
 
-    // Tạo dịch vụ mới
-    const service = await Service.create({
-      name,
-      description,
-      base_price,
-      duration_minutes,
-      is_active: true  // Mặc định là active
-    });
-
-    res.status(201).json({
-      success: true,
-      message: 'Tạo dịch vụ thành công',
-      data: { service }
-    });
-
-  } catch (error) {
-    next(error);
-  }
-};
+  body('duration_minutes')
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage('Thời gian thực hiện phải là số nguyên dương (phút)')
+];
 
 /**
- * PUT /api/admin/services/:id
- * Cập nhật thông tin dịch vụ
+ * Validation cho ID param
  */
-const updateService = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { name, description, base_price, duration_minutes } = req.body;
-
-    // Tìm dịch vụ
-    const service = await Service.findByPk(id);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy dịch vụ'
-      });
-    }
-
-    // Validation
-    if (base_price !== undefined && base_price <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Giá dịch vụ phải lớn hơn 0'
-      });
-    }
-
-    if (duration_minutes !== undefined && duration_minutes <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thời gian thực hiện phải lớn hơn 0'
-      });
-    }
-
-    // Update chỉ những field được gửi lên
-    const updateData = {};
-    if (name !== undefined) updateData.name = name;
-    if (description !== undefined) updateData.description = description;
-    if (base_price !== undefined) updateData.base_price = base_price;
-    if (duration_minutes !== undefined) updateData.duration_minutes = duration_minutes;
-
-    await service.update(updateData);
-
-    res.json({
-      success: true,
-      message: 'Cập nhật dịch vụ thành công',
-      data: { service }
-    });
-
-  } catch (error) {
-    next(error);
-  }
-};
+const idParamValidation = [
+  param('id')
+    .isInt()
+    .withMessage('ID không hợp lệ')
+];
 
 /**
- * PATCH /api/admin/services/:id/toggle
- * Bật/Tắt dịch vụ (Soft delete pattern)
- * Đây là cách ĐÚNG thay vì hard delete
+ * Middleware: Check validation result
  */
-const toggleService = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-
-    const service = await Service.findByPk(id);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy dịch vụ'
-      });
-    }
-
-    // Đảo ngược trạng thái
-    const newStatus = !service.is_active;
-    await service.update({ is_active: newStatus });
-
-    res.json({
-      success: true,
-      message: newStatus 
-        ? 'Đã bật dịch vụ. Khách hàng có thể đặt lịch.'
-        : 'Đã tắt dịch vụ. Khách hàng không thể đặt lịch nữa.',
-      data: { 
-        service,
-        is_active: newStatus
-      }
+const validate = (req, res, next) => {
+  const errors = validationResult(req);
+  
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      success: false,
+      message: 'Dữ liệu không hợp lệ',
+      errors: errors.array().map(err => ({
+        field: err.path || err.param,
+        message: err.msg
+      }))
     });
-
-  } catch (error) {
-    next(error);
   }
-};
-
-/**
- * DELETE /api/admin/services/:id
- * Xóa dịch vụ (NGUY HIỂM - chỉ cho phép nếu chưa có booking nào)
- * Nên dùng toggle thay vì delete
- */
-const deleteService = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { Booking } = require('../models');
-
-    const service = await Service.findByPk(id);
-
-    if (!service) {
-      return res.status(404).json({
-        success: false,
-        message: 'Không tìm thấy dịch vụ'
-      });
-    }
-
-    // Kiểm tra xem có booking nào sử dụng dịch vụ này không
-    const bookingCount = await Booking.count({
-      where: { service_id: id }
-    });
-
-    if (bookingCount > 0) {
-      return res.status(400).json({
-        success: false,
-        message: `Không thể xóa dịch vụ này vì đã có ${bookingCount} đơn hàng sử dụng. Hãy dùng chức năng Tắt dịch vụ thay thế.`
-      });
-    }
-
-    // Soft delete
-    await service.destroy();
-
-    res.json({
-      success: true,
-      message: 'Đã xóa dịch vụ thành công'
-    });
-
-  } catch (error) {
-    next(error);
-  }
+  
+  next();
 };
 
 module.exports = {
-  getAllServicesAdmin,
-  createService,
-  updateService,
-  toggleService,
-  deleteService
+  createServiceValidation,
+  updateServiceValidation,
+  idParamValidation,
+  validate
 };
