@@ -107,7 +107,7 @@ CREATE INDEX idx_bookings_date ON bookings(start_time) WHERE deleted_at IS NULL;
 -- Password: admin123 (đã hash bằng bcrypt, rounds=10)
 INSERT INTO users (email, password_hash, full_name, phone, role) VALUES
 ('admin@cleaningservice.com', 
- '$2a$10$XQKb6QL8Z5WKzF5y0F5qauE.3GsKJ6xL0qXCJl0T5xKJ5vN5YKjTi', 
+ '$2a$10$4UQENyXr/jSD/iAehtV3l.AIv/AIuEUGHnrABv1Hm8cbyYDRPJ/2a', 
  'System Admin', 
  '0901234567', 
  'ADMIN')
