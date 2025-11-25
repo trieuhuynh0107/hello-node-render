@@ -6,6 +6,7 @@ const errorHandler = require('./middlewares/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const uploadRoutes = require('./routes/uploadRoutes')
 
 const app = express();
 
@@ -52,6 +53,9 @@ app.use('/api/services', serviceRoutes);
 
 // Admin routes
 app.use('/api/admin', adminRoutes);
+
+// Upload routes
+app.use('/api/upload', uploadRoutes);
 
 // 404 Handler
 app.use((req, res) => {
