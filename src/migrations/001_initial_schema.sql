@@ -118,8 +118,7 @@ ON CONFLICT (email) DO NOTHING;
 -- ============================================
 INSERT INTO services (name, description, base_price, duration_minutes, is_active) VALUES
 ('Dọn nhà theo giờ', 'Dịch vụ dọn dẹp nhà cửa theo giờ, phù hợp cho căn hộ nhỏ', 150000, 120, true),
-('Dọn nhà tổng thể', 'Dọn dẹp toàn bộ nhà cửa bao gồm cả khu vực khó', 300000, 240, true),
-('Vệ sinh sau xây dựng', 'Làm sạch hoàn toàn sau khi hoàn thành công trình xây dựng', 500000, 300, true)
+('Chuyển nhà trọn gói', 'Chuyển nhà nhanh trọn gói giá rẻ', 500000, 300, true)
 ON CONFLICT DO NOTHING;
 
 -- ============================================
