@@ -45,11 +45,11 @@ SET layout_config = '[
     "order": 2,
     "data": {
       "service_title": "Gói dọn dẹp",
-      "note": "Giá ước tính theo diện tích/số phòng",
+      "note": "<ul><li>Giá đã bao gồm VAT và vật tư cơ bản</li><li>Cam kết sạch sẽ, gọn gàng</li><li>Bảo hành trong vòng 24h</li></ul>",
       "subservices": [
-        { "subservice_title": "Căn hộ 2 phòng", "price": 400000 },
-        { "subservice_title": "Căn hộ 3 phòng", "price": 550000 },
-        { "subservice_title": "Nhà phố 3 tầng", "price": 800000 }
+        { "subservice_title": "Căn hộ 2 phòng","description":"50m2", "price": 400000 },
+        { "subservice_title": "Căn hộ 3 phòng","description":"70m2", "price": 550000 },
+        { "subservice_title": "Nhà phố 3 tầng","description":"100m2", "price": 800000 }
       ]
     }
   },
@@ -123,7 +123,7 @@ SET layout_config = '[
     "order": 2,
     "data": {
       "service_title": "Các loại xe tải",
-      "note": "Giá cước tham khảo trong nội thành (chưa bao gồm bốc xếp)",
+      "note": "<ul><li><b>Bốc dỡ:</b> Đưa đồ đạc vào đúng vị trí các phòng tại nhà mới.</li><li><b>Lắp ráp:</b> Lắp lại giường, tủ, máy lạnh.</li><li><b>Nghiệm thu:</b> Khách hàng kiểm tra và xác nhận hoàn thành.</li></ul>",
       "subservices": [
         { "subservice_title": "Xe tải 500kg", "price": 350000 },
         { "subservice_title": "Xe tải 1.5 Tấn", "price": 600000 },
