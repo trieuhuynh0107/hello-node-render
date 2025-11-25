@@ -25,19 +25,16 @@ const Booking = sequelize.define('Booking', {
   },
   cleaner_id: {
     type: DataTypes.INTEGER,
-    allowNull: true, // NULL khi chưa gán nhân viên
+    allowNull: true,
     references: {
       model: 'cleaners',
       key: 'id'
     }
   },
   status: {
-    type: DataTypes.STRING(20),
-    allowNull: false,
+    type: DataTypes.ENUM('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED'),
     defaultValue: 'PENDING',
-    validate: {
-      isIn: [['PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED']]
-    }
+    allowNull: false
   },
   start_time: {
     type: DataTypes.DATE,
@@ -60,26 +57,35 @@ const Booking = sequelize.define('Booking', {
     allowNull: false
   },
   payment_status: {
-    type: DataTypes.STRING(20),
+    type: DataTypes.ENUM('UNPAID', 'PAID'),
     defaultValue: 'UNPAID',
-    validate: {
-      isIn: [['UNPAID', 'PAID']]
-    }
+    allowNull: false
+  },
+  // ✨ NEW: Dynamic form data
+  booking_data: {
+    type: DataTypes.JSONB,
+    allowNull: false,
+    defaultValue: {},
+    comment: 'Dynamic form data based on service form_schema'
   },
   created_at: {
     type: DataTypes.DATE,
-    defaultValue: DataTypes.NOW,
-    field: 'created_at'
+    defaultValue: DataTypes.NOW
+  },
+  updated_at: {
+    type: DataTypes.DATE,
+    defaultValue: DataTypes.NOW
   },
   deleted_at: {
     type: DataTypes.DATE,
-    allowNull: true,
-    field: 'deleted_at'
+    allowNull: true
   }
 }, {
   tableName: 'bookings',
-  timestamps: false,
+  timestamps: true,
   paranoid: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at',
   deletedAt: 'deleted_at'
 });
 

@@ -6,7 +6,8 @@ const errorHandler = require('./middlewares/errorHandler');
 const authRoutes = require('./routes/authRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const adminRoutes = require('./routes/adminRoutes');
-const uploadRoutes = require('./routes/uploadRoutes')
+const uploadRoutes = require('./routes/uploadRoutes');
+const bookingRoutes = require('./routes/bookingRoutes')
 
 const app = express();
 
@@ -56,6 +57,9 @@ app.use('/api/admin', adminRoutes);
 
 // Upload routes
 app.use('/api/upload', uploadRoutes);
+
+// Booking routes
+app.use('/api/bookings', bookingRoutes); 
 
 // 404 Handler
 app.use((req, res) => {
