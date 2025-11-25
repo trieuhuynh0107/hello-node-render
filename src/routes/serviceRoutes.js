@@ -13,7 +13,7 @@ router.get('/', serviceController.getAllServices);
 
 /**
  * @route   GET /api/services/:id
- * @desc    Lấy chi tiết 1 dịch vụ
+ * @desc    Lấy chi tiết 1 dịch vụ (bao gồm layout_config)
  * @access  Public
  */
 router.get(
@@ -21,6 +21,18 @@ router.get(
   idParamValidation,
   validate,
   serviceController.getServiceById
+);
+
+/**
+ * @route   GET /api/services/:id/preview
+ * @desc    Preview service (bao gồm inactive)
+ * @access  Public (nhưng nên bảo vệ bằng secret token trong thực tế)
+ */
+router.get(
+  '/:id/preview',
+  idParamValidation,
+  validate,
+  serviceController.previewService
 );
 
 module.exports = router;

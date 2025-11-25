@@ -20,12 +20,31 @@ router.use(adminOnly);
 // ============================================
 
 /**
+ * @route   GET /api/admin/services/block-schemas
+ * @desc    Lấy danh sách block types và schemas (cho Page Builder UI)
+ * @access  Admin only
+ */
+router.get('/services/block-schemas', adminServiceController.getBlockSchemas);
+
+/**
  * @route   GET /api/admin/services
  * @desc    Xem tất cả dịch vụ (bao gồm inactive)
  * @access  Admin only
  * @query   ?status=active|inactive (optional)
  */
 router.get('/services', adminServiceController.getAllServicesAdmin);
+
+/**
+ * @route   GET /api/admin/services/:id
+ * @desc    Lấy chi tiết service để edit (bao gồm layout_config)
+ * @access  Admin only
+ */
+router.get(
+  '/services/:id',
+  idParamValidation,
+  validate,
+  adminServiceController.getServiceForEdit
+);
 
 /**
  * @route   POST /api/admin/services
@@ -41,7 +60,7 @@ router.post(
 
 /**
  * @route   PUT /api/admin/services/:id
- * @desc    Cập nhật dịch vụ
+ * @desc    Cập nhật dịch vụ (toàn bộ)
  * @access  Admin only
  */
 router.put(
@@ -49,6 +68,18 @@ router.put(
   updateServiceValidation,
   validate,
   adminServiceController.updateService
+);
+
+/**
+ * @route   PUT /api/admin/services/:id/layout
+ * @desc    Cập nhật riêng layout_config (Page Builder)
+ * @access  Admin only
+ */
+router.put(
+  '/services/:id/layout',
+  idParamValidation,
+  validate,
+  adminServiceController.updateServiceLayout
 );
 
 /**

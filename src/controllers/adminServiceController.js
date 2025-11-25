@@ -1,4 +1,5 @@
-const { Service } = require('../models');
+const { Service, Booking } = require('../models');
+const { BLOCK_TYPES, BLOCK_SCHEMAS, validateBlock } = require('../config/blockSchemas');
 
 /**
  * GET /api/admin/services
@@ -6,7 +7,7 @@ const { Service } = require('../models');
  */
 const getAllServicesAdmin = async (req, res, next) => {
   try {
-    const { status } = req.query;  // Filter: ?status=active hoặc ?status=inactive
+    const { status } = req.query;
 
     const where = {};
     
@@ -18,6 +19,7 @@ const getAllServicesAdmin = async (req, res, next) => {
 
     const services = await Service.findAll({
       where,
+      attributes: ['id', 'name', 'description', 'base_price', 'duration_minutes', 'is_active', 'created_at'],
       order: [['id', 'ASC']]
     });
 
@@ -35,14 +37,50 @@ const getAllServicesAdmin = async (req, res, next) => {
 };
 
 /**
+ * GET /api/admin/services/:id
+ * Lấy chi tiết service (bao gồm layout_config) để edit
+ */
+const getServiceForEdit = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const service = await Service.findByPk(id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy dịch vụ'
+      });
+    }
+
+    const layoutConfig = typeof service.layout_config === 'string' 
+      ? JSON.parse(service.layout_config) 
+      : service.layout_config;
+
+    res.json({
+      success: true,
+      data: {
+        service: {
+          ...service.toJSON(),
+          layout_config: layoutConfig
+        }
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * POST /api/admin/services
- * Tạo dịch vụ mới
+ * Tạo dịch vụ mới (với layout_config mặc định)
  */
 const createService = async (req, res, next) => {
   try {
-    const { name, description, base_price, duration_minutes } = req.body;
+    const { name, description, base_price, duration_minutes, layout_config } = req.body;
 
-    // Validation
+    // Validation cơ bản
     if (!name || !base_price || !duration_minutes) {
       return res.status(400).json({
         success: false,
@@ -50,27 +88,39 @@ const createService = async (req, res, next) => {
       });
     }
 
-    if (base_price <= 0) {
+    if (base_price <= 0 || duration_minutes <= 0) {
       return res.status(400).json({
         success: false,
-        message: 'Giá dịch vụ phải lớn hơn 0'
+        message: 'Giá và thời gian phải lớn hơn 0'
       });
     }
 
-    if (duration_minutes <= 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Thời gian thực hiện phải lớn hơn 0'
-      });
+    // Validate layout_config nếu được gửi lên
+    let validatedLayoutConfig = [];
+    
+    if (layout_config && Array.isArray(layout_config)) {
+      for (const block of layout_config) {
+        const validation = validateBlock(block.type, block.data);
+        
+        if (!validation.valid) {
+          return res.status(400).json({
+            success: false,
+            message: `Block "${block.type}" không hợp lệ`,
+            errors: validation.errors
+          });
+        }
+      }
+      validatedLayoutConfig = layout_config;
     }
 
-    // Tạo dịch vụ mới
+    // Tạo service
     const service = await Service.create({
       name,
       description,
       base_price,
       duration_minutes,
-      is_active: true  // Mặc định là active
+      layout_config: validatedLayoutConfig,
+      is_active: true
     });
 
     res.status(201).json({
@@ -86,14 +136,13 @@ const createService = async (req, res, next) => {
 
 /**
  * PUT /api/admin/services/:id
- * Cập nhật thông tin dịch vụ
+ * Cập nhật thông tin dịch vụ (bao gồm layout_config)
  */
 const updateService = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, base_price, duration_minutes } = req.body;
+    const { name, description, base_price, duration_minutes, layout_config } = req.body;
 
-    // Tìm dịch vụ
     const service = await Service.findByPk(id);
 
     if (!service) {
@@ -118,12 +167,28 @@ const updateService = async (req, res, next) => {
       });
     }
 
-    // Update chỉ những field được gửi lên
+    // Validate layout_config nếu được gửi lên
+    if (layout_config && Array.isArray(layout_config)) {
+      for (const block of layout_config) {
+        const validation = validateBlock(block.type, block.data);
+        
+        if (!validation.valid) {
+          return res.status(400).json({
+            success: false,
+            message: `Block "${block.type}" không hợp lệ`,
+            errors: validation.errors
+          });
+        }
+      }
+    }
+
+    // Update
     const updateData = {};
     if (name !== undefined) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (base_price !== undefined) updateData.base_price = base_price;
     if (duration_minutes !== undefined) updateData.duration_minutes = duration_minutes;
+    if (layout_config !== undefined) updateData.layout_config = layout_config;
 
     await service.update(updateData);
 
@@ -139,9 +204,92 @@ const updateService = async (req, res, next) => {
 };
 
 /**
+ * PUT /api/admin/services/:id/layout
+ * Cập nhật riêng layout_config (dành cho Page Builder)
+ * ⭐ API chính cho Admin React Page Builder
+ */
+const updateServiceLayout = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { layout_config } = req.body;
+
+    if (!Array.isArray(layout_config)) {
+      return res.status(400).json({
+        success: false,
+        message: 'layout_config phải là array'
+      });
+    }
+
+    const service = await Service.findByPk(id);
+
+    if (!service) {
+      return res.status(404).json({
+        success: false,
+        message: 'Không tìm thấy dịch vụ'
+      });
+    }
+
+    // Validate từng block
+    for (let i = 0; i < layout_config.length; i++) {
+      const block = layout_config[i];
+      
+      if (!block.type || !block.data) {
+        return res.status(400).json({
+          success: false,
+          message: `Block thứ ${i + 1} thiếu "type" hoặc "data"`
+        });
+      }
+
+      const validation = validateBlock(block.type, block.data);
+      
+      if (!validation.valid) {
+        return res.status(400).json({
+          success: false,
+          message: `Block thứ ${i + 1} (${block.type}) không hợp lệ`,
+          errors: validation.errors
+        });
+      }
+    }
+
+    // Update layout
+    await service.update({ layout_config });
+
+    res.json({
+      success: true,
+      message: 'Cập nhật layout thành công',
+      data: {
+        service_id: service.id,
+        layout_config: service.layout_config
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * GET /api/admin/services/block-schemas
+ * Lấy danh sách block types và schemas
+ * Dành cho Admin UI render form động
+ */
+const getBlockSchemas = async (req, res, next) => {
+  try {
+    res.json({
+      success: true,
+      data: {
+        block_types: BLOCK_TYPES,
+        schemas: BLOCK_SCHEMAS
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * PATCH /api/admin/services/:id/toggle
- * Bật/Tắt dịch vụ (Soft delete pattern)
- * Đây là cách ĐÚNG thay vì hard delete
+ * Bật/Tắt dịch vụ
  */
 const toggleService = async (req, res, next) => {
   try {
@@ -156,7 +304,6 @@ const toggleService = async (req, res, next) => {
       });
     }
 
-    // Đảo ngược trạng thái
     const newStatus = !service.is_active;
     await service.update({ is_active: newStatus });
 
@@ -178,13 +325,11 @@ const toggleService = async (req, res, next) => {
 
 /**
  * DELETE /api/admin/services/:id
- * Xóa dịch vụ (NGUY HIỂM - chỉ cho phép nếu chưa có booking nào)
- * Nên dùng toggle thay vì delete
+ * Xóa dịch vụ (chỉ nếu chưa có booking)
  */
 const deleteService = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { Booking } = require('../models');
 
     const service = await Service.findByPk(id);
 
@@ -195,7 +340,7 @@ const deleteService = async (req, res, next) => {
       });
     }
 
-    // Kiểm tra xem có booking nào sử dụng dịch vụ này không
+    // Kiểm tra booking
     const bookingCount = await Booking.count({
       where: { service_id: id }
     });
@@ -207,7 +352,6 @@ const deleteService = async (req, res, next) => {
       });
     }
 
-    // Soft delete
     await service.destroy();
 
     res.json({
@@ -222,8 +366,11 @@ const deleteService = async (req, res, next) => {
 
 module.exports = {
   getAllServicesAdmin,
+  getServiceForEdit,
   createService,
   updateService,
+  updateServiceLayout,
+  getBlockSchemas,
   toggleService,
   deleteService
 };

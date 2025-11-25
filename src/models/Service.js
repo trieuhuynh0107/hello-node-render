@@ -33,6 +33,11 @@ const Service = sequelize.define('Service', {
     type: DataTypes.BOOLEAN,
     defaultValue: true
   },
+  layout_config: {
+    type: DataTypes.JSONB, // PostgreSQL JSONB type
+    defaultValue: [],
+    comment: 'Dynamic page layout configuration'
+  },
   created_at: {
     type: DataTypes.DATE,
     defaultValue: DataTypes.NOW,
