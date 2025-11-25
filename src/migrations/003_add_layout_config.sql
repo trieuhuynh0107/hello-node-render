@@ -107,7 +107,7 @@ SET layout_config = '[
         }
       ]
     }
-  }
+  },
   {
     "type": "booking",
     "order": 5,

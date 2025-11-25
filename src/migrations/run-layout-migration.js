@@ -33,7 +33,7 @@ async function runMigration() {
     console.log('🔄 Connected to PostgreSQL. Running layout migration...\n');
 
     // Đọc file SQL
-    const sqlPath = path.join(__dirname, 'src/migrations/003_add_layout_config.sql');
+    const sqlPath = path.join(__dirname, './003_add_layout_config.sql');
     const sql = fs.readFileSync(sqlPath, 'utf8');
 
     // Execute
