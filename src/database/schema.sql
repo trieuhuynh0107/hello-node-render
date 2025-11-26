@@ -1,6 +1,6 @@
 -- ============================================
 -- MASTER SCHEMA - CLEANING SERVICE PLATFORM
--- Version: 2.0 (Final)
+-- Version: 2.1 (Optimized for Booking & Assignment)
 -- ============================================
 
 -- 1. CLEANUP
@@ -23,7 +23,7 @@ CREATE TABLE users (
 );
 CREATE INDEX idx_users_email ON users(email) WHERE deleted_at IS NULL;
 
--- 3. TABLE: SERVICES (Đã bao gồm layout_config)
+-- 3. TABLE: SERVICES
 CREATE TABLE services (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
@@ -31,7 +31,7 @@ CREATE TABLE services (
     base_price DECIMAL(10, 2) NOT NULL CHECK (base_price >= 0),
     duration_minutes INTEGER NOT NULL CHECK (duration_minutes > 0),
     is_active BOOLEAN DEFAULT TRUE,
-    layout_config JSONB DEFAULT '[]'::jsonb, -- Cột lưu cấu hình UI động
+    layout_config JSONB DEFAULT '[]'::jsonb, 
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
@@ -43,6 +43,8 @@ CREATE TABLE cleaners (
     id SERIAL PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     phone VARCHAR(20) NOT NULL,
+    email VARCHAR(255) UNIQUE, -- Mới thêm: Để liên hệ/login sau này
+    avatar TEXT,               -- Mới thêm: Ảnh đại diện
     address TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'INACTIVE', 'ON_LEAVE')),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -50,20 +52,31 @@ CREATE TABLE cleaners (
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL
 );
 
--- 5. TABLE: BOOKINGS (Đã bao gồm booking_data và updated_at)
+-- 5. TABLE: BOOKINGS
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL,
     service_id INTEGER NOT NULL,
     cleaner_id INTEGER DEFAULT NULL,
-    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CONFIRMED', 'COMPLETED', 'CANCELLED')),
+    
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')),
+    
     start_time TIMESTAMP WITH TIME ZONE NOT NULL,
     end_time TIMESTAMP WITH TIME ZONE NOT NULL,
-    location TEXT NOT NULL,
+    
+    location TEXT NOT NULL, -- "Single source of truth" hiển thị nhanh
     note TEXT,
+    cancel_reason TEXT,     -- Mới thêm: Lưu lý do hủy riêng
+    
     total_price DECIMAL(10, 2) NOT NULL,
     payment_status VARCHAR(20) DEFAULT 'UNPAID' CHECK (payment_status IN ('UNPAID', 'PAID')),
-    booking_data JSONB DEFAULT '{}'::jsonb, -- Cột lưu dữ liệu form động
+    
+    booking_data JSONB DEFAULT '{}'::jsonb,
+    
+    -- Review (Chuẩn bị cho tương lai)
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
+    review TEXT,
+
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     deleted_at TIMESTAMP WITH TIME ZONE DEFAULT NULL,
@@ -74,17 +87,23 @@ CREATE TABLE bookings (
     CONSTRAINT check_time_order CHECK (end_time > start_time)
 );
 CREATE INDEX idx_bookings_customer ON bookings(customer_id);
+CREATE INDEX idx_bookings_cleaner ON bookings(cleaner_id); -- Index để check trùng lịch nhanh hơn
 CREATE INDEX idx_bookings_booking_data ON bookings USING GIN (booking_data);
 
 -- ============================================
 -- SEED DATA
 -- ============================================
 
--- Admin User (Pass: admin123)
+-- Admin User
 INSERT INTO users (email, password_hash, full_name, phone, role) VALUES
 ('admin@cleaningservice.com', '$2a$10$4UQENyXr/jSD/iAehtV3l.AIv/AIuEUGHnrABv1Hm8cbyYDRPJ/2a', 'System Admin', '0901234567', 'ADMIN');
 
--- Services: Dọn nhà (ID 1) - Full JSON Config
+-- Cleaners (Mới thêm để test Gán việc)
+INSERT INTO cleaners (name, phone, email, status) VALUES 
+('Nguyễn Văn A', '0900000001', 'cleaner1@test.com', 'ACTIVE'),
+('Trần Thị B', '0900000002', 'cleaner2@test.com', 'ACTIVE');
+
+-- Services: Dọn nhà (ID 1)
 INSERT INTO services (name, description, base_price, duration_minutes, is_active, layout_config) VALUES
 ('Dọn nhà theo giờ', 'Dịch vụ dọn dẹp nhà cửa theo giờ', 150000, 120, true, 
 '[
@@ -95,7 +114,8 @@ INSERT INTO services (name, description, base_price, duration_minutes, is_active
   {"type": "booking", "order": 4, "data": {"title": "Đặt lịch ngay", "button_text": "Đặt ngay", "form_schema": [{"field_name": "full_name", "field _type": "text", "label": "Họ và tên", "required": true},{"field_name": "address", "field_type": "text", "label": "Địa chỉ", "required": true}, {"field_name": "phone", "field_type": "text", "label": "SĐT", "required": true}, {"field_name": "subservice_id", "field_type": "select", "label": "Chọn gói", "required": true, "options": ["2br", "3br", "4br"]}, {"field_name": "booking_date", "field_type": "date", "label": "Ngày làm", "required": true}, {"field_name": "booking_time", "field_type": "time", "label": "Giờ làm", "required": true}]}}
 ]'::jsonb);
 
--- Services: Chuyển nhà (ID 2) - Full JSON Config (Standardized subservice_id)
+-- Services: Chuyển nhà (ID 2)
+-- 🔥 Đã đồng bộ ID "truck_0t5" để khớp với code test Postman của bạn
 INSERT INTO services (name, description, base_price, duration_minutes, is_active, layout_config) VALUES
 ('Chuyển nhà trọn gói', 'Chuyển nhà nhanh trọn gói giá rẻ', 500000, 300, true,
 '[
