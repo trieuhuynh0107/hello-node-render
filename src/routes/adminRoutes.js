@@ -1,9 +1,11 @@
 const express = require('express');
 const router = express.Router();
 
+// 1. Import Middleware
 const authenticate = require('../middlewares/auth');
 const adminOnly = require('../middlewares/adminOnly');
-const adminServiceController = require('../controllers/adminServiceController');
+
+// 2. Import Validators
 const {
   createServiceValidation,
   updateServiceValidation,
@@ -11,34 +13,30 @@ const {
   validate
 } = require('../validators/serviceValidator');
 
-// Tất cả routes dưới đây đều cần authenticate + adminOnly
+// 3. Import Controllers
+const adminServiceController = require('../controllers/adminServiceController');
+const adminBookingController = require('../controllers/adminBookingController');
+const cleanerController = require('../controllers/cleanerController'); // 🔥 Nhớ import cái này
+
+// ============================================
+// GLOBAL MIDDLEWARE
+// ============================================
+// Tất cả các route bên dưới dòng này đều bắt buộc phải Login + là Admin
 router.use(authenticate);
 router.use(adminOnly);
 
+
 // ============================================
-// SERVICE MANAGEMENT
+// 1. SERVICE MANAGEMENT
 // ============================================
 
-/**
- * @route   GET /api/admin/services/block-schemas
- * @desc    Lấy danh sách block types và schemas (cho Page Builder UI)
- * @access  Admin only
- */
+// Lấy danh sách block schemas (Page Builder)
 router.get('/services/block-schemas', adminServiceController.getBlockSchemas);
 
-/**
- * @route   GET /api/admin/services
- * @desc    Xem tất cả dịch vụ (bao gồm inactive)
- * @access  Admin only
- * @query   ?status=active|inactive (optional)
- */
+// Xem tất cả dịch vụ
 router.get('/services', adminServiceController.getAllServicesAdmin);
 
-/**
- * @route   GET /api/admin/services/:id
- * @desc    Lấy chi tiết service để edit (bao gồm layout_config)
- * @access  Admin only
- */
+// Lấy chi tiết service để edit
 router.get(
   '/services/:id',
   idParamValidation,
@@ -46,11 +44,7 @@ router.get(
   adminServiceController.getServiceForEdit
 );
 
-/**
- * @route   POST /api/admin/services
- * @desc    Tạo dịch vụ mới
- * @access  Admin only
- */
+// Tạo dịch vụ mới
 router.post(
   '/services',
   createServiceValidation,
@@ -58,11 +52,7 @@ router.post(
   adminServiceController.createService
 );
 
-/**
- * @route   PUT /api/admin/services/:id
- * @desc    Cập nhật dịch vụ (toàn bộ)
- * @access  Admin only
- */
+// Cập nhật dịch vụ
 router.put(
   '/services/:id',
   updateServiceValidation,
@@ -70,11 +60,7 @@ router.put(
   adminServiceController.updateService
 );
 
-/**
- * @route   PUT /api/admin/services/:id/layout
- * @desc    Cập nhật riêng layout_config (Page Builder)
- * @access  Admin only
- */
+// Cập nhật layout (Page Builder)
 router.put(
   '/services/:id/layout',
   idParamValidation,
@@ -82,11 +68,7 @@ router.put(
   adminServiceController.updateServiceLayout
 );
 
-/**
- * @route   PATCH /api/admin/services/:id/toggle
- * @desc    Bật/Tắt dịch vụ
- * @access  Admin only
- */
+// Bật/Tắt dịch vụ
 router.patch(
   '/services/:id/toggle',
   idParamValidation,
@@ -94,16 +76,39 @@ router.patch(
   adminServiceController.toggleService
 );
 
-/**
- * @route   DELETE /api/admin/services/:id
- * @desc    Xóa dịch vụ (chỉ nếu chưa có booking)
- * @access  Admin only
- */
+// Xóa dịch vụ
 router.delete(
   '/services/:id',
   idParamValidation,
   validate,
   adminServiceController.deleteService
+);
+
+
+// ============================================
+// 2. CLEANER MANAGEMENT (Quản lý nhân viên)
+// ============================================
+// 🔥 Thêm phần này để quản lý nhân viên (Tạo, Xem, Đổi trạng thái)
+
+router.post('/cleaners', cleanerController.createCleaner);
+router.get('/cleaners', cleanerController.getAllCleaners);
+router.put('/cleaners/:id/status', cleanerController.updateCleanerStatus);
+
+
+// ============================================
+// 3. BOOKING ASSIGNMENT (Điều phối đơn hàng)
+// ============================================
+
+// Xem danh sách ai rảnh cho đơn hàng X
+router.get(
+    '/bookings/:bookingId/available-cleaners', 
+    adminBookingController.getAvailableCleanersForBooking
+);
+
+// Thực hiện gán nhân viên
+router.post(
+    '/bookings/assign', 
+    adminBookingController.assignCleanerToBooking
 );
 
 module.exports = router;
