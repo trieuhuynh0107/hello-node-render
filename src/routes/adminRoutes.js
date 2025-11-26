@@ -14,15 +14,15 @@ const {
 } = require('../validators/serviceValidator');
 
 // 3. Import Controllers
-const adminServiceController = require('../controllers/adminServiceController');
-const adminBookingController = require('../controllers/adminBookingController');
+// 🔥 SỬA 1: Đổi thành serviceController (Gộp)
+const serviceController = require('../controllers/serviceController'); 
+const bookingController = require('../controllers/bookingController');
 const cleanerController = require('../controllers/cleanerController'); 
 const adminStatisticalController = require('../controllers/adminStatisticalController'); 
 
 // ============================================
 // GLOBAL MIDDLEWARE
 // ============================================
-// Tất cả các route bên dưới dòng này đều bắt buộc phải Login + là Admin
 router.use(authenticate);
 router.use(adminOnly);
 
@@ -30,19 +30,21 @@ router.use(adminOnly);
 // ============================================
 // 1. SERVICE MANAGEMENT
 // ============================================
+// 🔥 SỬA 2: Thay adminServiceController thành serviceController
+// 🔥 SỬA 3: Chú ý tên hàm getAllServicesAdmin -> getAdminServices (theo file controller mới)
 
-// Lấy danh sách block schemas (Page Builder)
-router.get('/services/block-schemas', adminServiceController.getBlockSchemas);
+// Lấy danh sách block schemas
+router.get('/services/block-schemas', serviceController.getBlockSchemas);
 
-// Xem tất cả dịch vụ
-router.get('/services', adminServiceController.getAllServicesAdmin);
+// Xem tất cả dịch vụ (Admin View)
+router.get('/services', serviceController.getAdminServices); 
 
 // Lấy chi tiết service để edit
 router.get(
   '/services/:id',
   idParamValidation,
   validate,
-  adminServiceController.getServiceForEdit
+  serviceController.getServiceForEdit
 );
 
 // Tạo dịch vụ mới
@@ -50,7 +52,7 @@ router.post(
   '/services',
   createServiceValidation,
   validate,
-  adminServiceController.createService
+  serviceController.createService
 );
 
 // Cập nhật dịch vụ
@@ -58,15 +60,15 @@ router.put(
   '/services/:id',
   updateServiceValidation,
   validate,
-  adminServiceController.updateService
+  serviceController.updateService
 );
 
-// Cập nhật layout (Page Builder)
+// Cập nhật layout
 router.put(
   '/services/:id/layout',
   idParamValidation,
   validate,
-  adminServiceController.updateServiceLayout
+  serviceController.updateServiceLayout
 );
 
 // Bật/Tắt dịch vụ
@@ -74,7 +76,7 @@ router.patch(
   '/services/:id/toggle',
   idParamValidation,
   validate,
-  adminServiceController.toggleService
+  serviceController.toggleService
 );
 
 // Xóa dịch vụ
@@ -82,41 +84,30 @@ router.delete(
   '/services/:id',
   idParamValidation,
   validate,
-  adminServiceController.deleteService
+  serviceController.deleteService
 );
 
 
 // ============================================
-// 2. CLEANER MANAGEMENT (Quản lý nhân viên)
+// 2. CLEANER MANAGEMENT
 // ============================================
-// 🔥 Thêm phần này để quản lý nhân viên (Tạo, Xem, Đổi trạng thái)
-
 router.post('/cleaners', cleanerController.createCleaner);
 router.get('/cleaners', cleanerController.getAllCleaners);
 router.put('/cleaners/:id/status', cleanerController.updateCleanerStatus);
 
 
 // ============================================
-// 3. BOOKING ASSIGNMENT (Điều phối đơn hàng)
-// ============================================-
+// 3. BOOKING ASSIGNMENT
+// ============================================
+router.get('/bookings', bookingController.getAllBookings);
+router.get('/bookings/:bookingId/available-cleaners', bookingController.getAvailableCleaners);
+router.post('/bookings/assign', bookingController.assignCleaner);
+router.put('/bookings/:id/status', bookingController.updateStatus);
 
-// 1. Lấy danh sách tất cả đơn hàng (Có lọc status, date...)
-router.get('/bookings', adminBookingController.getAllBookingsAdmin);
-
-// 2. Xem danh sách ai rảnh cho đơn hàng X
-router.get('/bookings/:bookingId/available-cleaners', adminBookingController.getAvailableCleanersForBooking);
-
-// 3. Thực hiện gán nhân viên
-router.post('/bookings/assign', adminBookingController.assignCleanerToBooking);
-
-// 4. Cập nhật trạng thái đơn hàng
-router.put('/bookings/:id/status', adminBookingController.updateBookingStatus);
 
 // ============================================
-// 4. STATISTICAL & DASHBOARD (Thống kê)
+// 4. STATISTICAL & DASHBOARD
 // ============================================
-
-// API lấy toàn bộ số liệu cho Dashboard
 router.get('/stats/dashboard', adminStatisticalController.getDashboardStats);
 
 module.exports = router;
