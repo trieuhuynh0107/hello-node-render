@@ -53,6 +53,20 @@ const calculateEndTime = (startTime, durationMinutes) => {
   return new Date(start.getTime() + durationMinutes * 60000);
 };
 
+// Hàm mới: Tự động trích xuất địa chỉ hiển thị từ JSON
+const generateLocationSummary = (bookingData) => {
+    // 1. Trường hợp Chuyển nhà (Có điểm đi & đến)
+    if (bookingData.from_address && bookingData.to_address) {
+        return `${bookingData.from_address} ➝ ${bookingData.to_address}`;
+    }
+    // 2. Trường hợp Dọn nhà (Ưu tiên address -> location -> from_address)
+    if (bookingData.address) return bookingData.address;
+    if (bookingData.location) return bookingData.location;
+    if (bookingData.from_address) return bookingData.from_address;
+    
+    return 'Chưa cập nhật địa chỉ';
+};
+
 // ============================================
 // 2. CONTROLLER FUNCTIONS (Public)
 // ============================================
@@ -61,7 +75,8 @@ const calculateEndTime = (startTime, durationMinutes) => {
 const createBooking = async (req, res, next) => {
   try {
     const customerId = req.user.id || req.user.userId;
-    const { service_id, location, note, booking_data } = req.body;
+    // Bỏ 'location' ở đây vì ta sẽ tự tính
+    const { service_id, note, booking_data } = req.body;
 
     // 1. Validate service
     const service = await Service.findOne({
@@ -72,26 +87,32 @@ const createBooking = async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Dịch vụ không tồn tại' });
     }
 
-    // 2. Validate Form Schema (Cái này Validator chung không check được, nên giữ lại)
+    // 2. Validate Form Schema
     const formSchema = await getFormSchemaFromService(service_id);
-    const validationErrors = validateDynamicFormData(formSchema, booking_data || {});
+    if (!booking_data) return res.status(400).json({ success: false, message: 'Thiếu booking_data' });
+
+    const validationErrors = validateDynamicFormData(formSchema, booking_data);
     if (validationErrors.length > 0) {
       return res.status(400).json({ success: false, message: 'Dữ liệu không hợp lệ', errors: validationErrors });
     }
 
     // 3. XỬ LÝ THỜI GIAN
-    // ⚠️ Validator đã check tính hợp lệ, check quá khứ, check giờ làm việc rồi.
-    // 👉 Controller chỉ cần parse ra để lưu vào DB thôi.
-    
+    if (!booking_data.booking_date || !booking_data.booking_time) {
+        return res.status(400).json({ success: false, message: 'Thiếu thông tin ngày giờ trong booking_data' });
+    }
+
     // Ép kiểu giờ VN (+07:00)
     const timeString = `${booking_data.booking_date}T${booking_data.booking_time}:00+07:00`;
     const startDate = new Date(timeString);
+    
+    // Lưu ý: Logic check Buffer Time và Work Hour đã được thực hiện ở Validator Middleware, 
+    // ở đây ta chỉ parse date để lưu vào DB.
 
-    // Tính thời gian kết thúc
     const endTime = calculateEndTime(startDate, service.duration_minutes);
-
-    // 4. Tính giá tiền
     const finalPrice = calculateFinalPrice(service, booking_data);
+    
+    // 4. Xử lý địa chỉ hiển thị (Auto Mapping)
+    const mainAddress = generateLocationSummary(booking_data);
 
     // 5. Create booking
     const booking = await Booking.create({
@@ -99,7 +120,7 @@ const createBooking = async (req, res, next) => {
       service_id: service.id,
       start_time: startDate,
       end_time: endTime,
-      location,
+      location: mainAddress, // ✅ Tự động lưu chuỗi địa chỉ tóm tắt
       note: note || null,
       total_price: finalPrice,
       payment_status: 'UNPAID',
@@ -117,7 +138,7 @@ const createBooking = async (req, res, next) => {
       message: 'Đặt lịch thành công!',
       data: {
         booking: {
-          ...createdBooking.toJSON(), // Convert sang JSON object để hiển thị đẹp
+          ...createdBooking.toJSON(),
           total_price: createdBooking.total_price
         }
       }
@@ -127,8 +148,6 @@ const createBooking = async (req, res, next) => {
     next(error);
   }
 };
-
-// --- Các hàm khác giữ nguyên logic ---
 
 const getMyBookings = async (req, res, next) => {
     try {
@@ -174,12 +193,12 @@ const cancelBooking = async (req, res, next) => {
 
         if (!booking) return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại.' });
 
+        // Check status chặn hủy
         if (['COMPLETED', 'CANCELLED', 'IN_PROGRESS'].includes(booking.status)) {
              return res.status(400).json({ success: false, message: 'Không thể hủy đơn hàng này.' });
         }
 
-        // Logic check 2 tiếng này phải nằm ở Controller
-        // Vì Validator bên ngoài không biết bookingId này là của ai và bắt đầu lúc mấy giờ.
+        // Check thời gian hủy (Business Rule: 2 tiếng trước khi làm)
         const CANCEL_HOURS_BEFORE = parseInt(process.env.CANCEL_HOURS_BEFORE || 2);
         const timeDiff = new Date(booking.start_time) - new Date(); 
         const hoursDiff = timeDiff / (1000 * 60 * 60);
@@ -187,13 +206,16 @@ const cancelBooking = async (req, res, next) => {
         if (hoursDiff < CANCEL_HOURS_BEFORE) {
              return res.status(400).json({ 
                  success: false, 
-                 message: `Chỉ được hủy đơn hàng trước ${CANCEL_HOURS_BEFORE} tiếng.` 
+                 message: `Chỉ được hủy đơn hàng trước ${CANCEL_HOURS_BEFORE} tiếng. Vui lòng liên hệ CSKH.` 
              });
         }
 
+        // Cập nhật trạng thái và lý do
         booking.status = 'CANCELLED';
+        
+        // ✅ Cập nhật trường cancel_reason mới (tách biệt với note)
         if (req.body.cancel_reason) {
-            booking.note = booking.note ? `${booking.note} | Lý do hủy: ${req.body.cancel_reason}` : `Lý do hủy: ${req.body.cancel_reason}`;
+            booking.cancel_reason = req.body.cancel_reason; 
         }
 
         await booking.save();
