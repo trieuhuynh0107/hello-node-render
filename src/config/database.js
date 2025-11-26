@@ -1,6 +1,9 @@
 require('dotenv').config();
 const { Sequelize } = require('sequelize');
 
+// Kiểm tra môi trường
+const isProduction = process.env.NODE_ENV === 'production';
+
 // Khởi tạo Sequelize instance
 const sequelize = new Sequelize(
   process.env.DB_NAME,
@@ -10,8 +13,17 @@ const sequelize = new Sequelize(
     host: process.env.DB_HOST,
     port: process.env.DB_PORT,
     dialect: 'postgres',
-    timezone: '+07:00', // Vietnam timezone
+    timezone: '+07:00',
     logging: process.env.NODE_ENV === 'development' ? console.log : false,
+    
+    // 🔥 SỬA: Thêm cấu hình SSL cho Render
+    dialectOptions: isProduction ? {
+      ssl: {
+        require: true, // Bắt buộc dùng SSL
+        rejectUnauthorized: false // Chấp nhận chứng chỉ của Render (Self-signed)
+      }
+    } : {}, // Ở Local thì để object rỗng (không SSL)
+
     pool: {
       max: 5,
       min: 0,
