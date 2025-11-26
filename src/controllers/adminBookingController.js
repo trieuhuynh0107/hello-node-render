@@ -1,5 +1,7 @@
 // src/controllers/adminBookingController.js
-const { Booking, Cleaner, Service } = require('../models');
+
+// 🔥 FIX: Thêm User vào dòng này
+const { Booking, Cleaner, Service, User } = require('../models'); 
 const { Op } = require('sequelize');
 
 // ==========================================
@@ -12,54 +14,39 @@ const checkCleanerAvailability = async (cleanerId, newStartTime, newEndTime) => 
     const newStart = new Date(newStartTime);
     const newEnd = new Date(newEndTime);
 
-    // Tìm xem có bất kỳ booking nào của cleaner này vi phạm khoảng thời gian trên không
     const conflictBooking = await Booking.findOne({
         where: {
             cleaner_id: cleanerId,
-            status: { [Op.in]: ['CONFIRMED', 'PENDING'] }, // Chỉ check các đơn đang active
+            status: { [Op.in]: ['CONFIRMED', 'PENDING'] }, 
             [Op.and]: [
                 {
-                    // Logic: Tìm lịch CŨ mà...
-                    // Start Cũ < End Mới + Buffer
-                    start_time: { 
-                        [Op.lt]: new Date(newEnd.getTime() + bufferMs) 
-                    },
-                    // VÀ End Cũ + Buffer > Start Mới
-                    end_time: { 
-                        [Op.gt]: new Date(newStart.getTime() - bufferMs) 
-                    }
+                    start_time: { [Op.lt]: new Date(newEnd.getTime() + bufferMs) },
+                    end_time: { [Op.gt]: new Date(newStart.getTime() - bufferMs) }
                 }
             ]
         }
     });
 
-    // Nếu tìm thấy conflictBooking -> Tức là Bận -> Return false (Không available)
-    // Nếu không tìm thấy -> Return true (Available)
     return !conflictBooking;
 };
 
 // ==========================================
 // 1. API: GỢI Ý NHÂN VIÊN RẢNH
 // ==========================================
-// GET /api/admin/bookings/:bookingId/available-cleaners
 const getAvailableCleanersForBooking = async (req, res, next) => {
     try {
         const { bookingId } = req.params;
 
-        // Lấy thông tin booking cần gán
         const booking = await Booking.findByPk(bookingId);
         if (!booking) return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại' });
 
-        // Lấy tất cả nhân viên đang đi làm (ACTIVE)
         const allCleaners = await Cleaner.findAll({ 
             where: { status: 'ACTIVE' },
-            attributes: ['id', 'name', 'phone', 'status'] // Chỉ lấy info cần thiết
+            attributes: ['id', 'name', 'phone', 'status'] 
         });
 
         const availableCleaners = [];
 
-        // Duyệt qua từng nhân viên để check lịch
-        // (Lưu ý: Nếu số lượng nhân viên lớn > 100, cần tối ưu query này bằng SQL raw, nhưng với quy mô nhỏ thì loop này OK)
         for (const cleaner of allCleaners) {
             const isFree = await checkCleanerAvailability(cleaner.id, booking.start_time, booking.end_time);
             if (isFree) {
@@ -81,12 +68,10 @@ const getAvailableCleanersForBooking = async (req, res, next) => {
 // ==========================================
 // 2. API: GÁN NHÂN VIÊN (ASSIGN)
 // ==========================================
-// POST /api/admin/bookings/assign
 const assignCleanerToBooking = async (req, res, next) => {
     try {
         const { booking_id, cleaner_id } = req.body;
 
-        // 1. Check Booking
         const booking = await Booking.findByPk(booking_id);
         if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
@@ -94,12 +79,10 @@ const assignCleanerToBooking = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Không thể gán nhân viên cho đơn đã hủy hoặc hoàn thành.' });
         }
 
-        // 2. Check Cleaner
         const cleaner = await Cleaner.findByPk(cleaner_id);
         if (!cleaner) return res.status(404).json({ success: false, message: 'Cleaner not found' });
         if (cleaner.status !== 'ACTIVE') return res.status(400).json({ success: false, message: 'Nhân viên này đang nghỉ hoặc không hoạt động.' });
 
-        // 3. Check Conflict Lần Cuối (Double check quan trọng)
         const isAvailable = await checkCleanerAvailability(cleaner_id, booking.start_time, booking.end_time);
         if (!isAvailable) {
             return res.status(409).json({ 
@@ -108,9 +91,8 @@ const assignCleanerToBooking = async (req, res, next) => {
             });
         }
 
-        // 4. Update
         booking.cleaner_id = cleaner_id;
-        booking.status = 'CONFIRMED'; // Đổi trạng thái từ PENDING -> CONFIRMED
+        booking.status = 'CONFIRMED'; 
         await booking.save();
 
         res.json({
@@ -122,7 +104,148 @@ const assignCleanerToBooking = async (req, res, next) => {
     } catch (error) { next(error); }
 };
 
+// ==========================================
+// 3. API: LẤY DANH SÁCH BOOKING (CHO ADMIN)
+// ==========================================
+const getAllBookingsAdmin = async (req, res, next) => {
+    try {
+        const { page = 1, limit = 10, status, date, search } = req.query;
+
+        const whereCondition = {};
+
+        if (status) {
+            whereCondition.status = status.toUpperCase();
+        }
+
+        if (date) {
+            const startOfDay = new Date(`${date}T00:00:00+07:00`);
+            const endOfDay = new Date(`${date}T23:59:59+07:00`);
+            
+            whereCondition.start_time = {
+                [Op.between]: [startOfDay, endOfDay]
+            };
+        }
+
+        if (search) {
+             whereCondition[Op.or] = [
+                { id: isNaN(search) ? null : search }, 
+                { note: { [Op.iLike]: `%${search}%` } }, 
+                { location: { [Op.iLike]: `%${search}%` } } 
+             ];
+        }
+
+        const offset = (page - 1) * limit;
+
+        const { count, rows } = await Booking.findAndCountAll({
+            where: whereCondition,
+            limit: parseInt(limit),
+            offset: parseInt(offset),
+            order: [['created_at', 'DESC']], 
+            include: [
+                { 
+                    model: User, // ✅ Đã có import User ở trên, dòng này sẽ chạy ngon lành
+                    as: 'customer', 
+                    attributes: ['id', 'full_name', 'phone', 'email'] 
+                },
+                { 
+                    model: Service, 
+                    as: 'service', 
+                    attributes: ['id', 'name'] 
+                },
+                { 
+                    model: Cleaner, 
+                    as: 'cleaner', 
+                    attributes: ['id', 'name', 'phone'] 
+                }
+            ],
+            distinct: true 
+        });
+
+        res.json({
+            success: true,
+            data: {
+                bookings: rows,
+                pagination: {
+                    totalItems: count,
+                    totalPages: Math.ceil(count / limit),
+                    currentPage: parseInt(page),
+                    limit: parseInt(limit)
+                }
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
+const updateBookingStatus = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body; // 'IN_PROGRESS', 'COMPLETED'
+        const userId = req.user.id || req.user.userId;
+        const userRole = req.user.role; // 'ADMIN', 'CUSTOMER' (Sau này có thêm 'CLEANER')
+
+        // 1. Validate Input
+        if (!['IN_PROGRESS', 'COMPLETED'].includes(status)) {
+            return res.status(400).json({ success: false, message: 'Trạng thái không hợp lệ.' });
+        }
+
+        // 2. Tìm Booking
+        const booking = await Booking.findByPk(id);
+        if (!booking) {
+            return res.status(404).json({ success: false, message: 'Đơn hàng không tồn tại.' });
+        }
+
+        // 3. Phân quyền (Security Check)
+        // - Customer: KHÔNG được phép tự cập nhật trạng thái này.
+        // - Admin: Được phép hết.
+        // - Cleaner (Tương lai): Chỉ được update đơn của chính mình.
+        if (userRole === 'CUSTOMER') {
+            return res.status(403).json({ success: false, message: 'Bạn không có quyền thực hiện hành động này.' });
+        }
+
+        // 4. KIỂM TRA QUY TRÌNH (STATE MACHINE VALIDATION)
+        // Đây là logic quan trọng để chặn nhảy cóc.
+        
+        // Muốn lên IN_PROGRESS -> Thì trạng thái hiện tại phải là CONFIRMED
+        if (status === 'IN_PROGRESS' && booking.status !== 'CONFIRMED') {
+            return res.status(400).json({ 
+                success: false, 
+                message: 'Chỉ có thể bắt đầu công việc khi đơn hàng đã ĐƯỢC XÁC NHẬN (CONFIRMED).' 
+            });
+        }
+
+        // Muốn lên COMPLETED -> Thì trạng thái hiện tại phải là IN_PROGRESS
+        if (status === 'COMPLETED' && booking.status !== 'IN_PROGRESS') {
+             return res.status(400).json({ 
+                success: false, 
+                message: 'Chỉ có thể hoàn thành khi đơn hàng ĐANG THỰC HIỆN (IN_PROGRESS).' 
+            });
+        }
+
+        // 5. Update Status
+        booking.status = status;
+        await booking.save();
+
+        res.json({
+            success: true,
+            message: `Cập nhật trạng thái thành công: ${status}`,
+            data: {
+                id: booking.id,
+                status: booking.status,
+                updated_at: booking.updated_at
+            }
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     getAvailableCleanersForBooking,
-    assignCleanerToBooking
+    assignCleanerToBooking,
+    getAllBookingsAdmin,
+    updateBookingStatus
 };

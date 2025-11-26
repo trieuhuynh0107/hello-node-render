@@ -16,7 +16,8 @@ const {
 // 3. Import Controllers
 const adminServiceController = require('../controllers/adminServiceController');
 const adminBookingController = require('../controllers/adminBookingController');
-const cleanerController = require('../controllers/cleanerController'); // 🔥 Nhớ import cái này
+const cleanerController = require('../controllers/cleanerController'); 
+const adminStatisticalController = require('../controllers/adminStatisticalController'); 
 
 // ============================================
 // GLOBAL MIDDLEWARE
@@ -97,18 +98,25 @@ router.put('/cleaners/:id/status', cleanerController.updateCleanerStatus);
 
 // ============================================
 // 3. BOOKING ASSIGNMENT (Điều phối đơn hàng)
+// ============================================-
+
+// 1. Lấy danh sách tất cả đơn hàng (Có lọc status, date...)
+router.get('/bookings', adminBookingController.getAllBookingsAdmin);
+
+// 2. Xem danh sách ai rảnh cho đơn hàng X
+router.get('/bookings/:bookingId/available-cleaners', adminBookingController.getAvailableCleanersForBooking);
+
+// 3. Thực hiện gán nhân viên
+router.post('/bookings/assign', adminBookingController.assignCleanerToBooking);
+
+// 4. Cập nhật trạng thái đơn hàng
+router.put('/bookings/:id/status', adminBookingController.updateBookingStatus);
+
+// ============================================
+// 4. STATISTICAL & DASHBOARD (Thống kê)
 // ============================================
 
-// Xem danh sách ai rảnh cho đơn hàng X
-router.get(
-    '/bookings/:bookingId/available-cleaners', 
-    adminBookingController.getAvailableCleanersForBooking
-);
-
-// Thực hiện gán nhân viên
-router.post(
-    '/bookings/assign', 
-    adminBookingController.assignCleanerToBooking
-);
+// API lấy toàn bộ số liệu cho Dashboard
+router.get('/stats/dashboard', adminStatisticalController.getDashboardStats);
 
 module.exports = router;
