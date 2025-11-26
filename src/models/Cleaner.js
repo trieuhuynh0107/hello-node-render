@@ -15,6 +15,18 @@ const Cleaner = sequelize.define('Cleaner', {
     type: DataTypes.STRING(20),
     allowNull: false
   },
+  email: {
+    type: DataTypes.STRING(255),
+    allowNull: true, // Có thể null lúc đầu, update sau
+    unique: true,
+    validate: {
+      isEmail: true
+    }
+  },
+  avatar: {
+    type: DataTypes.TEXT,
+    allowNull: true
+  },
   address: {
     type: DataTypes.TEXT,
     allowNull: true

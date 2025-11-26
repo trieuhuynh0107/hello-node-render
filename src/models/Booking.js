@@ -61,7 +61,6 @@ const Booking = sequelize.define('Booking', {
     defaultValue: 'UNPAID',
     allowNull: false
   },
-  // ✨ NEW: Dynamic form data
   booking_data: {
     type: DataTypes.JSONB,
     allowNull: false,
