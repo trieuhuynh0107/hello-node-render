@@ -136,7 +136,7 @@ INSERT INTO services (name, description, base_price, duration_minutes, is_active
       }
     ]
   }
-}
+},
   {"type": "booking", "order": 3, "data": {"title": "Đặt lịch ngay", "button_text": "Đặt ngay", "form_schema": [{"field_name": "subservice_id", "field_type": "select", "label": "Chọn gói", "required": true, "options": ["2br", "3br"]}, {"field_name": "booking_date", "field_type": "date", "label": "Ngày làm", "required": true}, {"field_name": "booking_time", "field_type": "time", "label": "Giờ làm", "required": true}, {"field_name": "address", "field_type": "text", "label": "Địa chỉ", "required": true}, {"field_name": "phone", "field_type": "text", "label": "SĐT", "required": true}]}}
 ]'::jsonb);
 
