@@ -1,6 +1,7 @@
 // src/controllers/cleanerController.js
 const { Cleaner, Booking } = require('../models');
 const { Op } = require('sequelize');
+const { getFileUrl} = require('../services/uploadService')
 
 // ============================================
 // 1. CREATE CLEANER (Tạo nhân viên mới)
@@ -20,11 +21,18 @@ const createCleaner = async (req, res, next) => {
             return res.status(400).json({ success: false, message: 'Số điện thoại nhân viên này đã tồn tại.' });
         }
 
+        // Lấy URL ảnh nếu có
+    let avatarUrl = null;
+    if (req.file) {
+        avatarUrl = getFileUrl(req.file);
+    }
+
         // Tạo mới
         const cleaner = await Cleaner.create({
             name,
             phone,
-            status: status || 'ACTIVE' // Mặc định là ACTIVE
+            status: status || 'ACTIVE',
+            avatar: avatarUrl 
         });
 
         res.status(201).json({

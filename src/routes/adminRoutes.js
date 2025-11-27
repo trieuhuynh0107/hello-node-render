@@ -4,6 +4,8 @@ const router = express.Router();
 // 1. Import Middleware
 const authenticate = require('../middlewares/auth');
 const adminOnly = require('../middlewares/adminOnly');
+const {getUploadMiddleware} = require('../services/uploadService');
+const upload = getUploadMiddleware();
 
 // 2. Import Validators
 const {
@@ -14,7 +16,6 @@ const {
 } = require('../validators/serviceValidator');
 
 // 3. Import Controllers
-// 🔥 SỬA 1: Đổi thành serviceController (Gộp)
 const serviceController = require('../controllers/serviceController'); 
 const bookingController = require('../controllers/bookingController');
 const cleanerController = require('../controllers/cleanerController'); 
@@ -30,8 +31,6 @@ router.use(adminOnly);
 // ============================================
 // 1. SERVICE MANAGEMENT
 // ============================================
-// 🔥 SỬA 2: Thay adminServiceController thành serviceController
-// 🔥 SỬA 3: Chú ý tên hàm getAllServicesAdmin -> getAdminServices (theo file controller mới)
 
 // Lấy danh sách block schemas
 router.get('/services/block-schemas', serviceController.getBlockSchemas);
@@ -91,7 +90,7 @@ router.delete(
 // ============================================
 // 2. CLEANER MANAGEMENT
 // ============================================
-router.post('/cleaners', cleanerController.createCleaner);
+router.post('/cleaners', upload.single('avatar'),cleanerController.createCleaner);
 router.get('/cleaners', cleanerController.getAllCleaners);
 router.put('/cleaners/:id/status', cleanerController.updateCleanerStatus);
 
