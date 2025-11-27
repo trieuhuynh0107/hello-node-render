@@ -18,7 +18,7 @@ const createBookingCore = async (customerId, data) => {
     const service = await Service.findOne({ where: { id: service_id, is_active: true } });
     if (!service) throw new Error('SERVICE_NOT_FOUND');
 
-    // B. Validate Form Data
+    // B. Validate Form Data (Vẫn validate đầy đủ bao gồm cả ngày/giờ)
     const bookingBlock = service.layout_config?.find(block => block.type === 'booking');
     const formSchema = bookingBlock?.data?.form_schema;
     
@@ -42,6 +42,10 @@ const createBookingCore = async (customerId, data) => {
     const finalPrice = calculateFinalPrice(service, booking_data);
     const locationDisplay = generateLocationSummary(booking_data);
 
+    const dataToSave = { ...booking_data };
+    delete dataToSave.booking_date;
+    delete dataToSave.booking_time;
+
     // E. Lưu DB
     const booking = await Booking.create({
         customer_id: customerId,
@@ -51,12 +55,11 @@ const createBookingCore = async (customerId, data) => {
         location: locationDisplay,
         note: note || null,
         total_price: finalPrice,
-        booking_data
+        booking_data: dataToSave // Lưu object đã được làm sạch
     });
 
     return booking;
 };
-
 // ==========================================
 // 2. LOGIC CHECK TRÙNG LỊCH (CHECK AVAILABILITY)
 // ==========================================
