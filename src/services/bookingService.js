@@ -140,7 +140,7 @@ const getAllBookingsCore = async (filter) => {
         include: [
             { model: User, as: 'customer', attributes: ['id', 'full_name', 'phone'] },
             { model: Service, as: 'service', attributes: ['name'] },
-            { model: Cleaner, as: 'cleaner', attributes: ['name', 'phone'] }
+            { model: Cleaner, as: 'cleaner', attributes: ['id','name', 'phone'] }
         ],
         distinct: true
     });
