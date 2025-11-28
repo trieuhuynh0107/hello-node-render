@@ -92,6 +92,7 @@ router.delete(
 // ============================================
 router.post('/cleaners', upload.single('avatar'),cleanerController.createCleaner);
 router.get('/cleaners', cleanerController.getAllCleaners);
+router.get('/cleaners/:id', cleanerController.getCleanerById);
 router.put('/cleaners/:id/status', cleanerController.updateCleanerStatus);
 
 

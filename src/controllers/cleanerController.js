@@ -128,8 +128,38 @@ const updateCleanerStatus = async (req, res, next) => {
     }
 };
 
+// ============================================
+// 4. GET CLEANER BY ID (Lấy chi tiết 1 nhân viên)
+// ============================================
+const getCleanerById = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        // Tìm nhân viên theo ID (Primary Key)
+        const cleaner = await Cleaner.findByPk(id);
+
+        // Kiểm tra nếu không tìm thấy
+        if (!cleaner) {
+            return res.status(404).json({
+                success: false,
+                message: 'Nhân viên không tồn tại.'
+            });
+        }
+
+        // Trả về dữ liệu
+        res.json({
+            success: true,
+            data: cleaner
+        });
+
+    } catch (error) {
+        next(error);
+    }
+};
+
 module.exports = {
     createCleaner,
     getAllCleaners,
-    updateCleanerStatus
+    updateCleanerStatus,
+    getCleanerById
 };
